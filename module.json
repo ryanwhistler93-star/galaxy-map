@@ -1,0 +1,15 @@
+{
+  "id": "galaxy-map",
+  "title": "Galaxy Map",
+  "description": "An Elite: Dangerous-style 3D galaxy map scene that flattens to a top-down chart as you zoom out. Paint faction territory, place star systems and link fast-travel points. Built for Dark Matter 5e.",
+  "version": "0.5.3",
+  "authors": [{ "name": "ryanwhistler93-star", "url": "https://github.com/ryanwhistler93-star" }],
+  "url": "https://github.com/ryanwhistler93-star/galaxy-map",
+  "manifest": "https://github.com/ryanwhistler93-star/galaxy-map/releases/latest/download/module.json",
+  "download": "https://github.com/ryanwhistler93-star/galaxy-map/releases/latest/download/module.zip",
+  "bugs": "https://github.com/ryanwhistler93-star/galaxy-map/issues",
+  "compatibility": { "minimum": "13", "verified": "14" },
+  "esmodules": ["scripts/galaxy-map.js"],
+  "styles": ["styles/galaxy-map.css"],
+  "socket": true
+}

@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+module.zip
+*.log
+node_modules/
+# Campaign map exports stay out of the repo (they may contain setting-specific content)
+galaxy-map-*.json
+dark-matter-galaxy.json

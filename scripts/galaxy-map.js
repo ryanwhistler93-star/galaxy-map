@@ -7,7 +7,8 @@
  * - All map data lives in the Scene's flags, so it is saved with the world and synced to players.
  */
 
-const MODULE_ID = "galaxy-map";
+const MODULE_ID = "rw-galaxy-map";
+const LEGACY_ID = "galaxy-map";   // id used before v0.6.0 (clashed with another package); scenes are migrated on load
 const FLAG = "data";
 const SOCKET = `module.${MODULE_ID}`;
 const THREE_CDN = "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
@@ -508,7 +509,7 @@ class GalaxyMap {
 
     const board = document.getElementById("board");
     const root = this.root = document.createElement("div");
-    root.id = "galaxy-map";
+    root.id = "rw-galaxy-map";
     if (board) {
       board.after(root);
       const z = getComputedStyle(board).zIndex;
@@ -1961,7 +1962,22 @@ Hooks.once("init", () => {
   };
 });
 
+/** Copy maps saved under the old "galaxy-map" flag scope to this module's id (GM only, once per scene). */
+async function migrateLegacyFlags() {
+  if (!game.user.isGM) return;
+  let moved = 0;
+  for (const scene of game.scenes) {
+    const old = scene.flags?.[LEGACY_ID];
+    if (!old || !Array.isArray(old.data?.systems)) continue;   // not one of ours
+    if (scene.flags?.[MODULE_ID]?.data) continue;               // already migrated
+    await scene.update({ [`flags.${MODULE_ID}`]: { enabled: !!old.enabled, data: old.data } });
+    moved++;
+  }
+  if (moved) ui.notifications.info(`Galaxy Map 3D: carried over ${moved} galaxy map scene${moved === 1 ? "" : "s"} from the previous version.`);
+}
+
 Hooks.once("ready", () => {
+  migrateLegacyFlags().catch(err => console.error(`${MODULE_ID} | Migration failed`, err));
   game.socket.on(SOCKET, msg => {
     if (!activeMap || activeMap.scene.id !== msg?.sceneId) return;
     if (msg.type === "view") Object.assign(activeMap.goal, msg.goal);

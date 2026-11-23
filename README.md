@@ -1,4 +1,6 @@
-# Galaxy Map (Foundry VTT v14)
+# Galaxy Map 3D (Foundry VTT v14)
+
+Module id: `rw-galaxy-map`. Not to be confused with the HoloSuite "Galaxy Map" module (`galaxy-map`).
 
 An Elite: Dangerous-style galaxy map scene. Close up it is fully 3D; as you zoom out the camera tilts until the map becomes a flat top-down chart.
 
@@ -11,7 +13,14 @@ https://github.com/ryanwhistler93-star/galaxy-map/releases/latest/download/modul
 
 Foundry will then offer updates whenever a new release is published.
 
-**Manual:** download `module.zip` from the [latest release](https://github.com/ryanwhistler93-star/galaxy-map/releases/latest) and unzip it so you have `Data/modules/galaxy-map/module.json`.
+**Manual:** download `module.zip` from the [latest release](https://github.com/ryanwhistler93-star/galaxy-map/releases/latest) and unzip it so you have `Data/modules/rw-galaxy-map/module.json`.
+
+### Upgrading from 0.5.x (module id `galaxy-map`)
+Versions before 0.6.0 used the id `galaxy-map`, which belongs to a different package, so Foundry tried to "update" it to that one. To switch:
+1. In *Add-on Modules*, uninstall **Galaxy Map** (your existing maps are stored in the scenes, not the module, so they are kept).
+2. Install again with the manifest URL above, which now installs **Galaxy Map 3D**.
+3. Enable **Galaxy Map 3D** in your world. When the GM loads the world, existing galaxy map scenes are carried over automatically.
+Per-player options (label radius, background toggle, editor open) reset once.
 
 Then:
 1. Enable **Galaxy Map** in your world's Manage Modules.
@@ -21,7 +30,7 @@ Then:
 ### three.js
 The module loads three.js from `lib/three.module.js` if present, otherwise from the jsDelivr CDN.
 For offline games, download `three.module.js` (v0.170.0) from
-https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js and save it as `galaxy-map/lib/three.module.js`.
+https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js and save it as `rw-galaxy-map/lib/three.module.js`.
 
 ## Controls
 - **W / A / S / D**: move forwards / left / backwards / right relative to the way the camera faces (hold **Shift** to move faster). Speed scales with zoom.
@@ -62,7 +71,7 @@ Hidden points and routes to hidden points are invisible to players.
 
 ## Macro API
 ```js
-const gm = game.modules.get("galaxy-map").api;
+const gm = game.modules.get("rw-galaxy-map").api;
 gm.toggle();                         // toggle current scene
 const json = gm.exportData();        // map data as an object
 await gm.importData(json);           // load map data (object)

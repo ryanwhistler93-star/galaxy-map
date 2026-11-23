@@ -232,6 +232,7 @@ function normalize(raw) {
   d.territory ??= { res: RES, cells: "" };
   d.partyAt ??= null;
   d.galaxy ??= { seed: null, shape: "spiral", arms: 4, twist: 4.2 };
+  d.backdrop = { src: "", scale: 1, x: 0, z: 0, opacity: 0.85, ...(d.backdrop ?? {}) };
   return d;
 }
 
@@ -489,6 +490,7 @@ class GalaxyMap {
     this.level = 0;
     this.keys = new Set();
     this.showAll = false;
+    try { this.showBackdrop = localStorage.getItem(`${MODULE_ID}.backdrop`) !== "0"; } catch { this.showBackdrop = true; }
     try { this.labelRadius = Number(game.settings.get(MODULE_ID, "labelRadius")) || 200; } catch { this.labelRadius = 200; }
     try { this.editOpen = localStorage.getItem(`${MODULE_ID}.editOpen`) === "1"; } catch { this.editOpen = false; }
     this.goal = { ...this.cam };
@@ -573,6 +575,7 @@ class GalaxyMap {
     this.data = normalize(raw);
     if (!this.renderer || this.destroyed) return;   // still loading: mount() will use this.data
     if (JSON.stringify(this.data.galaxy) !== this._dustKey) this.buildDust();
+    if (this.backdropKey() !== this._backdropKey) this.loadBackdrop();
     this.cells = rleDecode(this.data.territory.cells, this.res * this.res);
     this.factionIdx = clamp(this.factionIdx, 0, Math.max(0, this.data.factions.length - 1));
     this.refreshTerritory();
@@ -628,6 +631,7 @@ class GalaxyMap {
     const T = THREE, E = EXTENT, rnd = mulberry32(hashStr(this.scene.id) ^ 0x9e3779b9);
     const white = [0.95, 0.95, 1];
     this.buildDust();
+    this.loadBackdrop();
 
     const far = [];
     for (let i = 0; i < 2500; i++) {
@@ -709,6 +713,63 @@ class GalaxyMap {
     glow.scale.set(E * gs, E * gs, 1);
     this.dustObjs = [this.dust, glow];
     for (const o of this.dustObjs) this.scene3.add(o);
+  }
+
+  /** Image shown under the galaxy in the whole-galaxy view: map override, else scene background, else scene thumbnail. */
+  backdropSrc() {
+    return this.data.backdrop.src || this.scene.background?.src || this.scene.thumb || "";
+  }
+  backdropKey() { return JSON.stringify([this.backdropSrc(), this.data.backdrop]); }
+
+  loadBackdrop() {
+    const T = THREE, b = this.data.backdrop, src = this.backdropSrc();
+    this._backdropKey = this.backdropKey();
+    if (this.backdrop) { this.scene3.remove(this.backdrop); this.backdrop.geometry.dispose(); this.backdrop.material.map?.dispose(); this.backdrop.material.dispose(); this.backdrop = null; }
+    if (!src) return;
+    const url = /^(https?:|data:|blob:|\/)/.test(src) ? src : routeFor(src);
+    const token = (this._backdropToken = (this._backdropToken ?? 0) + 1);
+    new T.TextureLoader().load(url, tex => {
+      if (this.destroyed || token !== this._backdropToken) return tex.dispose();
+      tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 8;
+      const iw = tex.image?.width || 1, ih = tex.image?.height || 1;
+      const w = 2 * EXTENT * (Number(b.scale) || 1), h = w * ih / iw;   // fit image width to the map, then scale
+      const geo = new T.PlaneGeometry(w, h); geo.rotateX(-Math.PI / 2);
+      const mesh = new T.Mesh(geo, new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide }));
+      mesh.position.set(Number(b.x) || 0, -4, Number(b.z) || 0);
+      mesh.renderOrder = -2; mesh.frustumCulled = false; mesh.visible = false;
+      this.backdrop = mesh;
+      this.scene3.add(mesh);
+      this.renderToolbar();
+    }, undefined, err => {
+      console.warn(`${MODULE_ID} | Could not load background image ${url}`, err);
+      if (this.isGM) ui.notifications.warn(`Galaxy Map: couldn't load the background image (${src}).`);
+    });
+  }
+
+  toggleBackdrop(on = !this.showBackdrop) {
+    this.showBackdrop = on;
+    try { localStorage.setItem(`${MODULE_ID}.backdrop`, on ? "1" : "0"); } catch { /* storage unavailable */ }
+    this.renderToolbar();
+  }
+
+  async backdropDialog() {
+    const b = this.data.backdrop;
+    const f = await formDialog("Background Image", `
+      <p class="notes">Shown under the galaxy in the whole-galaxy view. Leave the image blank to use this scene's background image (or its thumbnail).</p>
+      <div class="form-group"><label>Image path</label><input type="text" name="src" value="${esc(b.src)}" placeholder="${esc(this.scene.background?.src || this.scene.thumb || "scene background")}"></div>
+      <div class="form-group"><label>Size (%)</label><input type="number" name="scale" value="${Math.round((Number(b.scale) || 1) * 1000) / 10}" step="0.1" min="5" max="500"></div>
+      <div class="form-group"><label>Shift east / west</label><input type="number" name="x" value="${Math.round(Number(b.x) || 0)}" step="1"></div>
+      <div class="form-group"><label>Shift south / north</label><input type="number" name="z" value="${Math.round(Number(b.z) || 0)}" step="1"></div>
+      <div class="form-group"><label>Opacity (%)</label><input type="number" name="opacity" value="${Math.round((Number.isFinite(Number(b.opacity)) ? Number(b.opacity) : 0.85) * 100)}" min="0" max="100"></div>
+      <p class="notes">Map units: the galaxy spans -1000 to 1000. Positive east moves the image right, positive south moves it down.</p>`);
+    if (!f) return;
+    this.data.backdrop = {
+      src: (f.src ?? "").trim(),
+      scale: clamp((Number(f.scale) || 100) / 100, 0.05, 5),
+      x: Number(f.x) || 0, z: Number(f.z) || 0,
+      opacity: clamp((f.opacity === "" || !Number.isFinite(Number(f.opacity)) ? 85 : Number(f.opacity)) / 100, 0, 1)
+    };
+    this.save(); this.loadBackdrop();
   }
 
   buildTerritory() {
@@ -883,6 +944,11 @@ class GalaxyMap {
     this.links.material.opacity = 0.45 + 0.25 * Math.sin(t * 2.5);
     this.dust.material.uniforms.uOpacity.value = lerp(0.75, 0.5, td);
     const labelA = smooth(0.35, 0.9, td) * 0.9;
+    if (this.backdrop) {
+      const op = Number(this.data.backdrop.opacity), a = this.showBackdrop ? smooth(0.5, 0.95, td) * (Number.isFinite(op) ? op : 0.85) : 0;
+      this.backdrop.material.opacity = a; this.backdrop.visible = a > 0.01;
+      this.dust.material.uniforms.uOpacity.value *= 1 - 0.8 * a;     // let the image's own stars show through
+    }
     for (const m of this.facLabels ?? []) { m.material.opacity = labelA; m.visible = labelA > 0.01; }
 
     const party = this.items.find(i => i.obj.id === this.data.partyAt);
@@ -1552,6 +1618,7 @@ class GalaxyMap {
     let h = `<div class="gm-row">`;
     if (gm) h += act("edit-toggle", editing ? "fa-xmark" : "fa-pen-ruler", editing ? "Close editor" : "Edit map", editing ? "active" : "") + `<span class="sep"></span>`;
     h += act("party", "fa-location-crosshairs", "Find party") + act("reset", "fa-expand", "Whole galaxy");
+    if (this.backdropSrc()) h += act("backdrop", "fa-image", "Background", this.showBackdrop ? "active" : "");
     if (gm) h += act("sync", "fa-eye", "Show players my view");
     h += `</div>`;
 
@@ -1561,6 +1628,7 @@ class GalaxyMap {
         + btn("navigate", "fa-arrow-pointer", "Select") + btn("paint", "fa-paintbrush", "Paint") + btn("erase", "fa-eraser", "Erase")
         + btn("system", "fa-sun", "Add system") + btn("gate", "fa-circle-nodes", "Add fast-travel") + btn("scatter", "fa-wand-magic-sparkles", "Scatter systems") + btn("link", "fa-link", "Link routes")
         + `<span class="sep"></span>`
+        + act("backdrop-edit", "fa-crop-simple", "Adjust background")
         + act("generate", "fa-dice", "Generate galaxy") + act("import", "fa-file-import", "Import") + act("export", "fa-file-export", "Export")
         + `</div>`;
       if (m === "paint" || m === "erase") {
@@ -1608,6 +1676,8 @@ class GalaxyMap {
       case "edit-toggle": return this.toggleEditor();
       case "generate": return this.generateDialog();
       case "undo-scatter": return this.undoScatter();
+      case "backdrop": return this.toggleBackdrop();
+      case "backdrop-edit": return this.backdropDialog();
       case "export": return exportGalaxy(this.scene);
       case "import": return importGalaxy(this.scene);
       case "faction-edit": return this.editFaction();
@@ -1781,6 +1851,9 @@ function validateImport(json) {
     d.territory.cells = rleEncode(cells);
   }
   if (d.partyAt && !ids.has(d.partyAt)) d.partyAt = null;
+  const bd = d.backdrop;
+  d.backdrop = { src: String(bd.src ?? ""), scale: clamp(Number(bd.scale) || 1, 0.05, 5), x: Number(bd.x) || 0, z: Number(bd.z) || 0,
+    opacity: clamp(Number.isFinite(Number(bd.opacity)) ? Number(bd.opacity) : 0.85, 0, 1) };
   const gx = d.galaxy;
   d.galaxy = {
     seed: gx.seed ?? null, shape: ["spiral", "elliptical", "irregular", "ring"].includes(gx.shape) ? gx.shape : "spiral",
@@ -1908,4 +1981,11 @@ Hooks.on("updateScene", (doc, change, _opts, userId) => {
   if (!f) return;
   if ("enabled" in f || "-=enabled" in f) return syncMount();
   if (activeMap && userId !== game.user.id && FLAG in f) activeMap.setData(doc.getFlag(MODULE_ID, FLAG));
+});
+
+Hooks.on("updateScene", (doc, change) => {
+  if (!activeMap || doc !== activeMap.scene) return;
+  if ("background" in change || "img" in change || "thumb" in change) {
+    if (activeMap.backdropKey() !== activeMap._backdropKey) { activeMap.loadBackdrop(); activeMap.renderToolbar(); }
+  }
 });

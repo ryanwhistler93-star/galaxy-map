@@ -28,6 +28,7 @@ https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js and save it as 
 - Left-drag: pan · Right-drag: rotate / tilt. Keep dragging down to go below the galactic plane and look up at systems.
 - Scroll: zoom (toward cursor). Zooming out flattens to a top-down chart (or bottom-up if you're below the plane). **Whole galaxy** resets the tilt.
 - **Faction names** are written across their territory when you zoom out to the galaxy view, sized as large as possible while staying inside that faction's borders (wrapping onto 2–3 lines if that fits better). They update automatically when you paint, erase, rename or recolour a faction.
+- **Background**: in the whole-galaxy view the scene's background image (or its thumbnail if it has none) fades in under the map. Each player can switch it on/off with the **Background** button (remembered per browser). GMs can line it up with **Edit map → Adjust background** (image path override, size %, east/west and north/south shift, opacity); these settings are saved with the map and included in exports.
 - **Names** only appear near your cursor, so crowded areas stay readable; overlapping names are thinned out (nearest to the cursor wins). The hovered/selected point and the party's location are always labelled. Hold **Alt** to show every name. Change the radius in Configure Settings → Galaxy Map: label radius (per player).
 - Click a star system or fast-travel point for its info panel.
 

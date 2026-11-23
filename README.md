@@ -74,5 +74,5 @@ gm.returnToGalaxy();                 // back to the galaxy map (handy as a hotba
 
 ## Releasing a new version (maintainers)
 1. Update `version` in `module.json` and commit.
-2. Tag and push: `git tag v0.5.4 && git push origin v0.5.4`.
+2. On GitHub open **Actions → Release → Run workflow** (leave the version blank to use module.json's), *or* push a tag: `git tag v0.5.4 && git push origin v0.5.4`.
 3. The **Release** GitHub Action builds `module.zip`, stamps the version and download link into `module.json`, and publishes both on a GitHub release. Foundry picks up the update from the manifest URL.
